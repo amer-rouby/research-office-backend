@@ -1,0 +1,36 @@
+# Every external setting is an RO_* environment variable (avoids clashing with machine-wide DB_URL/JWT_SECRET).
+server:
+  port: ${RO_PORT:8090}
+
+spring:
+  application:
+    name: research-office-backend
+  datasource:
+    url: ${RO_DB_URL:jdbc:postgresql://localhost:5434/research_office}
+    username: ${RO_DB_USERNAME:ro}
+    password: ${RO_DB_PASSWORD:ro}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 60MB
+
+ro:
+  security:
+    jwt-secret: ${RO_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+    cors-origins: ${RO_CORS_ORIGINS:http://localhost:4200}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
