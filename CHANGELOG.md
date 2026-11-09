@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.0
+- Production Docker image (multi-arch JDK/JRE 21 base, non-root user, files on `/data/files`), used by `research-office-deploy`.
+
 ## 0.3.0
 - Catalog module: the office's services (academic + business) seeded by migration; public list and admin edit. Thesis/paper ghostwriting is deliberately not offered.
 - Files module: `FilesApi` with local-disk storage (`RO_FILES_DIR`), 50 MB limit, allow-list of document/data/image types, owner-scoped access, UTF-8 download names.
