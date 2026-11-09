@@ -39,6 +39,13 @@ Modular monolith، كل موديول package تحت `com.researchoffice`:
 | `RO_ADMIN_EMAIL` | `admin@research-office.local` (أول أدمن بيتعمل لو مفيش مستخدمين) |
 | `RO_ADMIN_PASSWORD` | `ChangeMe#2026` — للتطوير فقط، غيّره قبل الإنتاج |
 
+## بيانات المكتب على الموقع
+| المتغير | المعنى |
+|---|---|
+| `RO_OFFICE_NAME` | اسم المكتب |
+| `RO_OFFICE_WHATSAPP` | رقم الواتساب بالكود الدولي (مثل 97455551234) — يظهر زر واتساب في الموقع |
+| `RO_OFFICE_EMAIL` | إيميل التواصل |
+
 ## الإيميل (اختياري)
 | المتغير | المعنى |
 |---|---|

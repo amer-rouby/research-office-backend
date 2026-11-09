@@ -30,6 +30,11 @@ class ApplicationTests {
     }
 
     @Test
+    void officeContactIsPublic() throws Exception {
+        mvc.perform(get("/api/public/office")).andExpect(status().isOk()).andExpect(jsonPath("$.name").isNotEmpty());
+    }
+
+    @Test
     void openApiIsPublic() throws Exception {
         mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
     }
