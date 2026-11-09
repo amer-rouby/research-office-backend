@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0
+- Public office contact endpoint `GET /api/public/office` (name, WhatsApp, email from `RO_OFFICE_NAME`, `RO_OFFICE_WHATSAPP`, `RO_OFFICE_EMAIL`) for the website.
+
 ## 0.6.0
 - Payments: record received payments per request (amount, method, date, note) in the quote currency, delete mistakes; request detail shows payments and the paid total, the client tracking view shows the paid total.
 - `OrderNotice` events published by the orders module for every step that matters.
