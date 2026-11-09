@@ -60,4 +60,12 @@ class OrderPayment extends BaseEntity {
 interface OrderPaymentRepository extends JpaRepository<OrderPayment, UUID> {
 
     List<OrderPayment> findByOrderIdOrderByPaidOnAscCreatedAtAsc(UUID orderId);
+
+    @org.springframework.data.jpa.repository.Query(
+            "select p.currency as currency, sum(p.amount) as total from OrderPayment p where p.paidOn >= :from group by p.currency")
+    List<CurrencySum> paidSince(LocalDate from);
+
+    @org.springframework.data.jpa.repository.Query("select p.currency as currency, sum(p.amount) as total "
+            + "from OrderPayment p, ServiceOrder o where o.id = p.orderId and o.status in :statuses group by p.currency")
+    List<CurrencySum> paidForStatuses(java.util.Collection<com.researchoffice.orders.OrderStatus> statuses);
 }

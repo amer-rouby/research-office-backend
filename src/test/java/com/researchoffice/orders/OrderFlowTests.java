@@ -139,6 +139,40 @@ class OrderFlowTests {
                 .andExpect(jsonPath("$.byStatus.NEW").isNumber());
     }
 
+    @Test
+    void guardsStopStepsThatAreNotReady() throws Exception {
+        String created = body(post("/api/public/orders").contentType(MediaType.APPLICATION_JSON).content("""
+                {"serviceId":"%s","clientName":"حارس الخطوات","clientPhone":"55559999","details":"اختبار شروط الخطوات"}
+                """.formatted(serviceId())));
+        String token = JsonPath.read(created, "$.trackingToken");
+        List<String> ids = JsonPath.read(body(get("/api/admin/orders").param("q", "حارس الخطوات")
+                .header("Authorization", admin)), "$.items[*].id");
+        String order = "/api/admin/orders/" + ids.getFirst();
+        mvc.perform(post(order + "/quote").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"price\":500,\"currency\":\"SAR\",\"note\":null}")).andExpect(status().isOk());
+        mvc.perform(post("/api/public/orders/" + token + "/accept-quote")).andExpect(status().isOk());
+
+        // cannot pay more than the quote
+        mvc.perform(post(order + "/payments").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":600,\"method\":\"CASH\",\"paidOn\":\"2026-11-09\",\"note\":null}"))
+                .andExpect(jsonPath("$.code").value("PAYMENT_EXCEEDS_BALANCE"));
+        mvc.perform(post(order + "/payments").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":200,\"method\":\"CASH\",\"paidOn\":\"2026-11-09\",\"note\":null}"))
+                .andExpect(jsonPath("$.paidTotal").value(200));
+
+        // cannot deliver without a file for the client
+        changeStatus(order, "IN_PROGRESS");
+        changeStatus(order, "IN_REVIEW");
+        mvc.perform(post(order + "/status").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"DELIVERED\",\"note\":null,\"visibleToClient\":true}"))
+                .andExpect(jsonPath("$.code").value("NO_DELIVERABLES"));
+
+        // dashboard money: SAR owed = 500 - 200 on accepted work
+        String stats = body(get("/api/admin/orders/stats").header("Authorization", admin));
+        List<Number> owed = JsonPath.read(stats, "$.money[?(@.currency == 'SAR')].outstanding");
+        assertThat(owed.getFirst().doubleValue()).isEqualTo(300.0);
+    }
+
     private void changeStatus(String adminOrder, String to) throws Exception {
         mvc.perform(post(adminOrder + "/status").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"%s\",\"note\":null,\"visibleToClient\":true}".formatted(to)))
