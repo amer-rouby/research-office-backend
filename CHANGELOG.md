@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+- Staff management API (`/api/admin/staff`): list, create admins/experts, rename, activate/deactivate (not yourself), reset password; `IdentityApi` for other modules.
+- Expert assignment: admin assigns an active expert to a request (internal timeline note); request detail shows the assigned expert.
+- Expert API (`/api/expert/tasks`): own tasks only (others get 404), no client contact details, start/resume, upload work (kept internal), notes, submit for review.
+- Review gate: an admin publishes a reviewed internal file to make it a client deliverable.
+
 ## 0.4.0
 - Production Docker image (multi-arch JDK/JRE 21 base, non-root user, files on `/data/files`), used by `research-office-deploy`.
 

@@ -3,11 +3,16 @@ package com.researchoffice.orders.internal;
 import com.researchoffice.catalog.CatalogApi;
 import com.researchoffice.catalog.CatalogApi.ServiceRef;
 import com.researchoffice.files.FilesApi;
+import com.researchoffice.identity.IdentityApi;
+import com.researchoffice.identity.Role;
 import com.researchoffice.files.FilesApi.FileContent;
 import com.researchoffice.files.FilesApi.FileKind;
 import com.researchoffice.orders.OrderStatus;
 import com.researchoffice.orders.internal.OrderDtos.CreateOrderRequest;
 import com.researchoffice.orders.internal.OrderDtos.CreatedOrder;
+import com.researchoffice.orders.internal.OrderDtos.ExpertRef;
+import com.researchoffice.orders.internal.OrderDtos.ExpertTask;
+import com.researchoffice.orders.internal.OrderDtos.ExpertTaskDetail;
 import com.researchoffice.orders.internal.OrderDtos.FileView;
 import com.researchoffice.orders.internal.OrderDtos.NoteRequest;
 import com.researchoffice.orders.internal.OrderDtos.OrderDetail;
@@ -49,6 +54,7 @@ class OrderService {
     private final OrderEventRepository events;
     private final CatalogApi catalog;
     private final FilesApi files;
+    private final IdentityApi identity;
     private final OrdersProperties props;
     private final Clock clock;
 
@@ -121,7 +127,7 @@ class OrderService {
         return new OrderDetail(o.getId(), o.getReference(), props.webBaseUrl() + "/t/" + o.getTrackingToken(),
                 o.getServiceId(), serviceName(o), o.getStatus(), o.getStatus().next(), o.getClientName(),
                 o.getClientPhone(), o.getClientEmail(), o.getCountry(), o.getDetails(), o.getDeadline(), Quote.of(o),
-                timeline(o, e -> true), fileViews(o, f -> true), o.getCreatedAt());
+                expertRef(o), timeline(o, e -> true), fileViews(o, f -> true), o.getCreatedAt());
     }
 
     OrderDetail quote(UUID id, QuoteRequest r, String actor) {
@@ -170,6 +176,91 @@ class OrderService {
         long open = by.entrySet().stream().filter(e -> e.getKey().isOpen()).mapToLong(Map.Entry::getValue).sum();
         long total = by.values().stream().mapToLong(Long::longValue).sum();
         return new OrderStats(by, open, total);
+    }
+
+    OrderDetail assign(UUID id, UUID expertId, String actor) {
+        var expert = identity.findStaff(expertId)
+                .filter(s -> s.active() && s.role() == Role.EXPERT)
+                .orElseThrow(() -> AppException.rule("EXPERT_UNAVAILABLE", "Choose an active expert"));
+        ServiceOrder o = byId(id);
+        o.assignTo(expert.id());
+        log(o, Type.NOTE, null, null, "تم إسناد الطلب إلى " + expert.fullName(), actor, false);
+        return detail(id);
+    }
+
+    OrderDetail publishFile(UUID id, UUID fileId, String actor) {
+        ServiceOrder o = byId(id);
+        var file = files.publish(o.getId(), fileId);
+        log(o, Type.FILE_ADDED, null, null, file.name(), actor, true);
+        return detail(id);
+    }
+
+    // ---------------- expert (only on tasks assigned to them) ----------------
+
+    @Transactional(readOnly = true)
+    List<ExpertTask> expertTasks(UUID expertId) {
+        return orders.findByAssignedExpertIdOrderByUpdatedAtDesc(expertId).stream()
+                .map(o -> new ExpertTask(o.getId(), o.getReference(), serviceName(o), o.getStatus(), o.getDeadline(),
+                        o.getUpdatedAt()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    ExpertTaskDetail expertTask(UUID id, UUID expertId) {
+        ServiceOrder o = assigned(id, expertId);
+        boolean canStart = o.getStatus() == OrderStatus.ACCEPTED || o.getStatus() == OrderStatus.REVISION;
+        boolean canSubmit = o.getStatus() == OrderStatus.IN_PROGRESS;
+        return new ExpertTaskDetail(o.getId(), o.getReference(), serviceName(o), o.getStatus(), o.getDetails(),
+                o.getDeadline(), canStart, canSubmit, timeline(o, e -> true),
+                fileViews(o, f -> true));
+    }
+
+    ExpertTaskDetail expertStart(UUID id, UUID expertId, String actor) {
+        ServiceOrder o = assigned(id, expertId);
+        if (o.getStatus() != OrderStatus.ACCEPTED && o.getStatus() != OrderStatus.REVISION) {
+            throw AppException.rule("INVALID_TRANSITION", "This task cannot be started now");
+        }
+        move(o, OrderStatus.IN_PROGRESS, null, actor, true);
+        return expertTask(id, expertId);
+    }
+
+    ExpertTaskDetail expertSubmit(UUID id, UUID expertId, String note, String actor) {
+        ServiceOrder o = assigned(id, expertId);
+        if (o.getStatus() != OrderStatus.IN_PROGRESS) {
+            throw AppException.rule("INVALID_TRANSITION", "Only work in progress can be submitted for review");
+        }
+        move(o, OrderStatus.IN_REVIEW, note, actor, false);
+        return expertTask(id, expertId);
+    }
+
+    ExpertTaskDetail expertNote(UUID id, UUID expertId, String note, String actor) {
+        log(assigned(id, expertId), Type.NOTE, null, null, note, actor, false);
+        return expertTask(id, expertId);
+    }
+
+    ExpertTaskDetail expertUpload(UUID id, UUID expertId, List<MultipartFile> uploads, String actor) {
+        ServiceOrder o = assigned(id, expertId);
+        requireOpen(o);
+        store(o, FileKind.INTERNAL, uploads, actor);
+        return expertTask(id, expertId);
+    }
+
+    @Transactional(readOnly = true)
+    FileContent expertDownload(UUID id, UUID expertId, UUID fileId) {
+        return files.open(assigned(id, expertId).getId(), fileId);
+    }
+
+    private ServiceOrder assigned(UUID id, UUID expertId) {
+        ServiceOrder o = byId(id);
+        if (!o.isAssignedTo(expertId)) {
+            throw AppException.notFound("Task", id);
+        }
+        return o;
+    }
+
+    private ExpertRef expertRef(ServiceOrder o) {
+        return o.getAssignedExpertId() == null ? null
+                : identity.findStaff(o.getAssignedExpertId()).map(s -> new ExpertRef(s.id(), s.fullName())).orElse(null);
     }
 
     // ---------------- helpers ----------------

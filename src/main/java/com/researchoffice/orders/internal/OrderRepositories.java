@@ -13,6 +13,8 @@ interface OrderRepository extends JpaRepository<ServiceOrder, UUID>, JpaSpecific
 
     Optional<ServiceOrder> findByTrackingToken(String trackingToken);
 
+    List<ServiceOrder> findByAssignedExpertIdOrderByUpdatedAtDesc(UUID expertId);
+
     @Query(value = "SELECT nextval('order_ref_seq')", nativeQuery = true)
     long nextReferenceNumber();
 

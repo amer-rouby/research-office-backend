@@ -52,6 +52,13 @@ class StoredFile extends BaseEntity {
         this.uploadedBy = uploadedBy;
     }
 
+    void publish() {
+        if (kind != FileKind.INTERNAL) {
+            throw com.researchoffice.shared.error.AppException.rule("FILE_NOT_INTERNAL", "Only internal files can be published");
+        }
+        kind = FileKind.DELIVERABLE;
+    }
+
     FileRef toRef() {
         return new FileRef(getId(), kind, originalName, contentType, sizeBytes, uploadedBy, getCreatedAt());
     }

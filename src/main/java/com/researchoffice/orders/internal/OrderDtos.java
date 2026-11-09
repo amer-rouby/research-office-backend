@@ -61,7 +61,32 @@ final class OrderDtos {
                        @Schema(nullable = true) String clientEmail, @Schema(nullable = true) String country,
                        String details, @Schema(nullable = true) LocalDate deadline,
                        @Schema(nullable = true) Quote quote,
+                       @Schema(nullable = true) ExpertRef assignedExpert,
                        List<TimelineEntry> timeline, List<FileView> files, Instant createdAt) {
+    }
+
+    record ExpertRef(UUID id, String fullName) {
+    }
+
+    record AssignRequest(@NotNull UUID expertId) {
+    }
+
+    // ---- expert ----
+
+    /** An expert's view of a task: the work, never the client's contact details. */
+    record ExpertTask(UUID id, String reference, String serviceName, OrderStatus status,
+                      @Schema(nullable = true) LocalDate deadline, Instant updatedAt) {
+    }
+
+    record ExpertTaskDetail(UUID id, String reference, String serviceName, OrderStatus status, String details,
+                            @Schema(nullable = true) LocalDate deadline, boolean canStart, boolean canSubmit,
+                            List<TimelineEntry> timeline, List<FileView> files) {
+    }
+
+    record ExpertNoteRequest(@NotBlank @Size(max = 2000) String note) {
+    }
+
+    record SubmitRequest(@Schema(nullable = true) @Size(max = 2000) String note) {
     }
 
     record QuoteRequest(@NotNull @DecimalMin(value = "1.00") BigDecimal price,

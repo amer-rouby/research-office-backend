@@ -59,6 +59,9 @@ class ServiceOrder extends BaseEntity {
     @Column(name = "quote_note")
     private String quoteNote;
 
+    @Column(name = "assigned_expert_id")
+    private UUID assignedExpertId;
+
     ServiceOrder(String reference, String trackingToken, UUID serviceId, String clientName, String clientPhone,
                  String clientEmail, String country, String details, LocalDate deadline) {
         this.reference = reference;
@@ -89,6 +92,17 @@ class ServiceOrder extends BaseEntity {
         this.currency = currency.toUpperCase();
         this.quoteNote = blankToNull(note);
         return previous;
+    }
+
+    void assignTo(UUID expertId) {
+        if (!status.isOpen()) {
+            throw AppException.rule("ORDER_CLOSED", "This request is closed");
+        }
+        this.assignedExpertId = expertId;
+    }
+
+    boolean isAssignedTo(UUID expertId) {
+        return expertId.equals(assignedExpertId);
     }
 
     private static String blankToNull(String s) {
