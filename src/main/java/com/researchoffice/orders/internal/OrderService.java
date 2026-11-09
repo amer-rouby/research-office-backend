@@ -52,6 +52,7 @@ import org.springframework.web.multipart.MultipartFile;
 class OrderService {
 
     static final String CLIENT = "العميل";
+    static final String OFFICE = "فريق المكتب";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OrderRepository orders;
@@ -81,8 +82,10 @@ class OrderService {
     TrackingView track(String token) {
         ServiceOrder o = byToken(token);
         return new TrackingView(o.getReference(), serviceName(o), o.getStatus(), o.getClientName(), o.getDeadline(),
-                Quote.of(o), paidTotal(o), timeline(o, TimelineEntry::visibleToClient),
-                fileViews(o, f -> f.kind().visibleToClient()), o.getCreatedAt());
+                Quote.of(o), paidTotal(o),
+                timeline(o, TimelineEntry::visibleToClient).stream().map(OrderService::asSeenByClient).toList(),
+                fileViews(o, f -> f.kind().visibleToClient()).stream().map(OrderService::asSeenByClient).toList(),
+                o.getCreatedAt());
     }
 
     List<FileView> clientUpload(String token, List<MultipartFile> uploads) {
@@ -156,7 +159,7 @@ class OrderService {
         }
         payments.save(new OrderPayment(o.getId(), r.amount(), o.getCurrency(), r.method(), r.paidOn(), r.note(), actor));
         String text = "تم استلام دفعة %s %s".formatted(r.amount().toPlainString(), o.getCurrency());
-        log(o, Type.NOTE, null, null, text, actor, true);
+        log(o, Type.PAYMENT, null, null, text, actor, true);
         notify(o, OrderNotice.Type.PAYMENT_RECORDED, text);
         return detail(id);
     }
@@ -166,7 +169,7 @@ class OrderService {
         OrderPayment p = payments.findById(paymentId).filter(x -> x.getOrderId().equals(o.getId()))
                 .orElseThrow(() -> AppException.notFound("Payment", paymentId));
         payments.delete(p);
-        log(o, Type.NOTE, null, null, "حذف دفعة مسجلة بالخطأ: %s %s".formatted(p.getAmount().toPlainString(),
+        log(o, Type.PAYMENT, null, null, "حذف دفعة مسجلة بالخطأ: %s %s".formatted(p.getAmount().toPlainString(),
                 p.getCurrency()), actor, false);
         return detail(id);
     }
@@ -243,7 +246,7 @@ class OrderService {
         boolean canStart = o.getStatus() == OrderStatus.ACCEPTED || o.getStatus() == OrderStatus.REVISION;
         boolean canSubmit = o.getStatus() == OrderStatus.IN_PROGRESS;
         return new ExpertTaskDetail(o.getId(), o.getReference(), serviceName(o), o.getStatus(), o.getDetails(),
-                o.getDeadline(), canStart, canSubmit, timeline(o, e -> true),
+                o.getDeadline(), canStart, canSubmit, timeline(o, OrderService::visibleToExpert),
                 fileViews(o, f -> true));
     }
 
@@ -280,6 +283,22 @@ class OrderService {
     @Transactional(readOnly = true)
     FileContent expertDownload(UUID id, UUID expertId, UUID fileId) {
         return files.open(assigned(id, expertId).getId(), fileId);
+    }
+
+    /** Clients see the office as one team, never individual staff names. */
+    private static TimelineEntry asSeenByClient(TimelineEntry e) {
+        return CLIENT.equals(e.actor()) ? e : new TimelineEntry(e.id(), e.type(), e.fromStatus(), e.toStatus(), e.note(),
+                OFFICE, e.visibleToClient(), e.at());
+    }
+
+    private static FileView asSeenByClient(FileView f) {
+        return CLIENT.equals(f.uploadedBy()) ? f : new FileView(f.id(), f.kind(), f.name(), f.contentType(), f.sizeBytes(),
+                OFFICE, f.uploadedAt());
+    }
+
+    /** Experts see the work history, not prices or payments. */
+    private static boolean visibleToExpert(TimelineEntry e) {
+        return !e.type().equals(Type.QUOTED.name()) && !e.type().equals(Type.PAYMENT.name());
     }
 
     private ServiceOrder assigned(UUID id, UUID expertId) {
