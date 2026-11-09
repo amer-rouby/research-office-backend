@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+- Catalog module: the office's services (academic + business) seeded by migration; public list and admin edit. Thesis/paper ghostwriting is deliberately not offered.
+- Files module: `FilesApi` with local-disk storage (`RO_FILES_DIR`), 50 MB limit, allow-list of document/data/image types, owner-scoped access, UTF-8 download names.
+- Orders module: request lifecycle `NEW → QUOTED → ACCEPTED → IN_PROGRESS → IN_REVIEW → DELIVERED → CLOSED` (+ `REVISION`, `CANCELLED`) enforced by one transition table; references `RO-YYYY-NNNN`; timeline of events with client visibility.
+- Public client API by private tracking link: create request, upload files, view status/quote/timeline, accept quote, ask for revision, confirm delivery, download deliverables (internal files never exposed).
+- Admin API: search/filter/page requests, detail with next allowed statuses and tracking URL, send quote, change status, notes, upload deliverables/internal files, stats per status.
+
 ## 0.2.0
 - Identity module: staff users (ADMIN, EXPERT), BCrypt passwords, first admin created from `RO_ADMIN_*`.
 - Auth API: `POST /api/auth/login`, `/refresh` (rotating refresh tokens, reuse revokes the whole family), `/logout`, `GET /api/auth/me`.

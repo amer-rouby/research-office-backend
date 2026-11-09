@@ -26,6 +26,10 @@ ro:
     cors-origins: ${RO_CORS_ORIGINS:http://localhost:4200}
     access-token-ttl: ${RO_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${RO_REFRESH_TOKEN_TTL:14d}
+  files:
+    dir: ${RO_FILES_DIR:data/files}
+  orders:
+    web-base-url: ${RO_WEB_URL:http://localhost:4200}
   bootstrap:
     admin-email: ${RO_ADMIN_EMAIL:admin@research-office.local}
     admin-password: ${RO_ADMIN_PASSWORD:ChangeMe#2026}

@@ -33,6 +33,8 @@ Modular monolith، كل موديول package تحت `com.researchoffice`:
 | `RO_DB_USERNAME` / `RO_DB_PASSWORD` | `ro` / `ro` |
 | `RO_JWT_SECRET` | قيمة dev فقط — لازم تتغير في الإنتاج (32 بايت على الأقل) |
 | `RO_CORS_ORIGINS` | `http://localhost:4200` |
+| `RO_FILES_DIR` | `data/files` (مكان حفظ الملفات) |
+| `RO_WEB_URL` | `http://localhost:4200` (لتكوين لينك متابعة العميل) |
 | `RO_ACCESS_TOKEN_TTL` / `RO_REFRESH_TOKEN_TTL` | `15m` / `14d` |
 | `RO_ADMIN_EMAIL` | `admin@research-office.local` (أول أدمن بيتعمل لو مفيش مستخدمين) |
 | `RO_ADMIN_PASSWORD` | `ChangeMe#2026` — للتطوير فقط، غيّره قبل الإنتاج |
