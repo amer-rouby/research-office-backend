@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+- Identity module: staff users (ADMIN, EXPERT), BCrypt passwords, first admin created from `RO_ADMIN_*`.
+- Auth API: `POST /api/auth/login`, `/refresh` (rotating refresh tokens, reuse revokes the whole family), `/logout`, `GET /api/auth/me`.
+- Role-based access: `/api/admin/**` ADMIN, `/api/expert/**` EXPERT or ADMIN.
+- OpenAPI: DTO properties are required unless marked nullable, so generated web types are exact.
+
+
 ## 0.1.0
 - Project skeleton: Spring Boot 4.1, Java 21, modular monolith (Spring Modulith boundary test).
 - Shared building blocks: `BaseEntity` (UUID, audit, optimistic lock), `PageResponse`, RFC 9457 errors with `code`.
