@@ -13,7 +13,7 @@
 
     <groupId>com.researchoffice</groupId>
     <artifactId>research-office-backend</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>research-office-backend</name>
     <description>Research office platform backend (modular monolith)</description>
 
