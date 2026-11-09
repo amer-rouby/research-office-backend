@@ -39,5 +39,13 @@ Modular monolith، كل موديول package تحت `com.researchoffice`:
 | `RO_ADMIN_EMAIL` | `admin@research-office.local` (أول أدمن بيتعمل لو مفيش مستخدمين) |
 | `RO_ADMIN_PASSWORD` | `ChangeMe#2026` — للتطوير فقط، غيّره قبل الإنتاج |
 
+## الإيميل (اختياري)
+| المتغير | المعنى |
+|---|---|
+| `RO_MAIL_HOST` / `RO_MAIL_PORT` | سيرفر SMTP (مثل `smtp-relay.brevo.com` / `587`) — فاضي = الإيميلات تتسجل في اللوج بس |
+| `RO_MAIL_USERNAME` / `RO_MAIL_PASSWORD` | بيانات SMTP |
+| `RO_MAIL_FROM` | عنوان المُرسل (لازم يكون موثّق عند مزود الإيميل) |
+| `RO_NOTIFY_EMAIL` | إيميل المكتب اللي توصله إشعارات الطلبات (افتراضيًا = `RO_ADMIN_EMAIL`) |
+
 ## الإصدارات
 كل تغيير على branch ← Pull Request ← تحديث الـ version في `pom.xml` و`CHANGELOG.md` ← merge ← tag `vX.Y.Z` ← GitHub Release.

@@ -7,6 +7,7 @@ import com.researchoffice.identity.IdentityApi;
 import com.researchoffice.identity.Role;
 import com.researchoffice.files.FilesApi.FileContent;
 import com.researchoffice.files.FilesApi.FileKind;
+import com.researchoffice.orders.OrderNotice;
 import com.researchoffice.orders.OrderStatus;
 import com.researchoffice.orders.internal.OrderDtos.CreateOrderRequest;
 import com.researchoffice.orders.internal.OrderDtos.CreatedOrder;
@@ -18,6 +19,8 @@ import com.researchoffice.orders.internal.OrderDtos.NoteRequest;
 import com.researchoffice.orders.internal.OrderDtos.OrderDetail;
 import com.researchoffice.orders.internal.OrderDtos.OrderStats;
 import com.researchoffice.orders.internal.OrderDtos.OrderSummary;
+import com.researchoffice.orders.internal.OrderDtos.PaymentRequest;
+import com.researchoffice.orders.internal.OrderDtos.PaymentView;
 import com.researchoffice.orders.internal.OrderDtos.Quote;
 import com.researchoffice.orders.internal.OrderDtos.QuoteRequest;
 import com.researchoffice.orders.internal.OrderDtos.StatusChangeRequest;
@@ -37,6 +40,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +59,8 @@ class OrderService {
     private final CatalogApi catalog;
     private final FilesApi files;
     private final IdentityApi identity;
+    private final OrderPaymentRepository payments;
+    private final ApplicationEventPublisher publisher;
     private final OrdersProperties props;
     private final Clock clock;
 
@@ -67,6 +73,7 @@ class OrderService {
         var order = orders.save(new ServiceOrder(reference, newToken(), service.id(), r.clientName(), r.clientPhone(),
                 r.clientEmail(), r.country(), r.details(), r.deadline()));
         log(order, Type.CREATED, null, OrderStatus.NEW, null, CLIENT, true);
+        notify(order, OrderNotice.Type.CREATED, order.getDetails());
         return new CreatedOrder(order.getReference(), order.getTrackingToken());
     }
 
@@ -74,7 +81,7 @@ class OrderService {
     TrackingView track(String token) {
         ServiceOrder o = byToken(token);
         return new TrackingView(o.getReference(), serviceName(o), o.getStatus(), o.getClientName(), o.getDeadline(),
-                Quote.of(o), timeline(o, TimelineEntry::visibleToClient),
+                Quote.of(o), paidTotal(o), timeline(o, TimelineEntry::visibleToClient),
                 fileViews(o, f -> f.kind().visibleToClient()), o.getCreatedAt());
     }
 
@@ -127,15 +134,40 @@ class OrderService {
         return new OrderDetail(o.getId(), o.getReference(), props.webBaseUrl() + "/t/" + o.getTrackingToken(),
                 o.getServiceId(), serviceName(o), o.getStatus(), o.getStatus().next(), o.getClientName(),
                 o.getClientPhone(), o.getClientEmail(), o.getCountry(), o.getDetails(), o.getDeadline(), Quote.of(o),
-                expertRef(o), timeline(o, e -> true), fileViews(o, f -> true), o.getCreatedAt());
+                expertRef(o), paidTotal(o),
+                payments.findByOrderIdOrderByPaidOnAscCreatedAtAsc(o.getId()).stream().map(PaymentView::of).toList(),
+                timeline(o, e -> true), fileViews(o, f -> true), o.getCreatedAt());
     }
 
     OrderDetail quote(UUID id, QuoteRequest r, String actor) {
         ServiceOrder o = byId(id);
         OrderStatus from = o.quote(r.price(), r.currency(), r.note());
-        log(o, Type.QUOTED, from, OrderStatus.QUOTED, "%s %s".formatted(r.price().toPlainString(),
-                r.currency().toUpperCase()) + (r.note() == null || r.note().isBlank() ? "" : " — " + r.note()),
-                actor, true);
+        String text = "%s %s".formatted(r.price().toPlainString(), r.currency().toUpperCase())
+                + (r.note() == null || r.note().isBlank() ? "" : " — " + r.note());
+        log(o, Type.QUOTED, from, OrderStatus.QUOTED, text, actor, true);
+        notify(o, OrderNotice.Type.QUOTED, text);
+        return detail(id);
+    }
+
+    OrderDetail recordPayment(UUID id, PaymentRequest r, String actor) {
+        ServiceOrder o = byId(id);
+        if (o.getCurrency() == null) {
+            throw AppException.rule("NO_QUOTE", "Send a quote before recording payments");
+        }
+        payments.save(new OrderPayment(o.getId(), r.amount(), o.getCurrency(), r.method(), r.paidOn(), r.note(), actor));
+        String text = "تم استلام دفعة %s %s".formatted(r.amount().toPlainString(), o.getCurrency());
+        log(o, Type.NOTE, null, null, text, actor, true);
+        notify(o, OrderNotice.Type.PAYMENT_RECORDED, text);
+        return detail(id);
+    }
+
+    OrderDetail deletePayment(UUID id, UUID paymentId, String actor) {
+        ServiceOrder o = byId(id);
+        OrderPayment p = payments.findById(paymentId).filter(x -> x.getOrderId().equals(o.getId()))
+                .orElseThrow(() -> AppException.notFound("Payment", paymentId));
+        payments.delete(p);
+        log(o, Type.NOTE, null, null, "حذف دفعة مسجلة بالخطأ: %s %s".formatted(p.getAmount().toPlainString(),
+                p.getCurrency()), actor, false);
         return detail(id);
     }
 
@@ -268,6 +300,29 @@ class OrderService {
     private void move(ServiceOrder o, OrderStatus to, String note, String actor, boolean visible) {
         OrderStatus from = o.moveTo(to);
         log(o, Type.STATUS_CHANGED, from, to, note, actor, visible);
+        OrderNotice.Type notice = switch (to) {
+            case ACCEPTED -> OrderNotice.Type.ACCEPTED;
+            case IN_REVIEW -> OrderNotice.Type.SUBMITTED_FOR_REVIEW;
+            case DELIVERED -> OrderNotice.Type.DELIVERED;
+            case REVISION -> OrderNotice.Type.REVISION_REQUESTED;
+            case CLOSED -> OrderNotice.Type.CLOSED;
+            default -> null;
+        };
+        if (notice != null) {
+            notify(o, notice, note);
+        }
+    }
+
+    /** Announces the change; listeners run after the transaction commits. */
+    private void notify(ServiceOrder o, OrderNotice.Type type, String detail) {
+        publisher.publishEvent(new OrderNotice(type, o.getReference(), serviceName(o), o.getClientName(),
+                o.getClientEmail(), props.webBaseUrl() + "/t/" + o.getTrackingToken(),
+                props.webBaseUrl() + "/admin/requests/" + o.getId(), detail));
+    }
+
+    private java.math.BigDecimal paidTotal(ServiceOrder o) {
+        return payments.findByOrderIdOrderByPaidOnAscCreatedAtAsc(o.getId()).stream()
+                .map(OrderPayment::getAmount).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
     }
 
     private List<FileView> store(ServiceOrder o, FileKind kind, List<MultipartFile> uploads, String actor) {
