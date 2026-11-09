@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+- Workflow guards: an expert cannot submit for review without uploading work (`NO_WORK_FILES`); a request cannot be delivered until at least one file is sent to the client (`NO_DELIVERABLES`); a payment cannot exceed the remaining balance (`PAYMENT_EXCEEDS_BALANCE`).
+- Dashboard stats: per-currency money (collected this month, outstanding on accepted work) and the number of active requests due within 3 days.
+
 ## 0.7.1
 - Privacy: the client tracking view shows staff actions and files as "فريق المكتب" instead of individual staff/expert names.
 - Experts no longer see quotes or payments in a task history (new `PAYMENT` timeline type).

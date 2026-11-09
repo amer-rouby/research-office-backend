@@ -116,7 +116,11 @@ final class OrderDtos {
     record NoteRequest(@NotBlank @Size(max = 2000) String note, boolean visibleToClient) {
     }
 
-    record OrderStats(Map<OrderStatus, Long> byStatus, long open, long total) {
+    record OrderStats(Map<OrderStatus, Long> byStatus, long open, long total, List<MoneyStat> money, long dueSoon) {
+    }
+
+    /** Per currency: received this month, and still owed on accepted work. */
+    record MoneyStat(String currency, BigDecimal collectedThisMonth, BigDecimal outstanding) {
     }
 
     // ---- shared ----

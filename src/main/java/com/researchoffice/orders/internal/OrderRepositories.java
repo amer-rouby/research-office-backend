@@ -15,6 +15,14 @@ interface OrderRepository extends JpaRepository<ServiceOrder, UUID>, JpaSpecific
 
     List<ServiceOrder> findByAssignedExpertIdOrderByUpdatedAtDesc(UUID expertId);
 
+    @Query("select o.currency as currency, sum(o.quotedPrice) as total from ServiceOrder o "
+            + "where o.quotedPrice is not null and o.status in :statuses group by o.currency")
+    List<CurrencySum> quotedByCurrency(java.util.Collection<OrderStatus> statuses);
+
+    @Query("select count(o) from ServiceOrder o where o.deadline is not null and o.deadline <= :until "
+            + "and o.status in :statuses")
+    long countDueBy(java.time.LocalDate until, java.util.Collection<OrderStatus> statuses);
+
     @Query(value = "SELECT nextval('order_ref_seq')", nativeQuery = true)
     long nextReferenceNumber();
 
@@ -41,6 +49,13 @@ interface OrderRepository extends JpaRepository<ServiceOrder, UUID>, JpaSpecific
         }
         return spec;
     }
+}
+
+/** Money total per currency (projection). */
+interface CurrencySum {
+    String getCurrency();
+
+    java.math.BigDecimal getTotal();
 }
 
 interface OrderEventRepository extends JpaRepository<OrderEvent, UUID> {

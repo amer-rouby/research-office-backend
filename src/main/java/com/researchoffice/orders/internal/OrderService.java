@@ -157,6 +157,10 @@ class OrderService {
         if (o.getCurrency() == null) {
             throw AppException.rule("NO_QUOTE", "Send a quote before recording payments");
         }
+        java.math.BigDecimal remaining = o.getQuotedPrice().subtract(paidTotal(o));
+        if (r.amount().compareTo(remaining) > 0) {
+            throw AppException.rule("PAYMENT_EXCEEDS_BALANCE", "Payment is larger than the remaining balance " + remaining);
+        }
         payments.save(new OrderPayment(o.getId(), r.amount(), o.getCurrency(), r.method(), r.paidOn(), r.note(), actor));
         String text = "تم استلام دفعة %s %s".formatted(r.amount().toPlainString(), o.getCurrency());
         log(o, Type.PAYMENT, null, null, text, actor, true);
@@ -210,7 +214,22 @@ class OrderService {
         orders.countByStatus().forEach(c -> by.put(c.getStatus(), c.getTotal()));
         long open = by.entrySet().stream().filter(e -> e.getKey().isOpen()).mapToLong(Map.Entry::getValue).sum();
         long total = by.values().stream().mapToLong(Long::longValue).sum();
-        return new OrderStats(by, open, total);
+        var committed = java.util.EnumSet.of(OrderStatus.ACCEPTED, OrderStatus.IN_PROGRESS, OrderStatus.IN_REVIEW,
+                OrderStatus.DELIVERED, OrderStatus.REVISION, OrderStatus.CLOSED);
+        var working = java.util.EnumSet.of(OrderStatus.ACCEPTED, OrderStatus.IN_PROGRESS, OrderStatus.IN_REVIEW,
+                OrderStatus.REVISION);
+        java.time.LocalDate today = java.time.LocalDate.now(clock);
+        Map<String, java.math.BigDecimal> month = sums(payments.paidSince(today.withDayOfMonth(1)));
+        Map<String, java.math.BigDecimal> owed = sums(orders.quotedByCurrency(committed));
+        sums(payments.paidForStatuses(committed)).forEach((c, paid) -> owed.merge(c, paid.negate(), java.math.BigDecimal::add));
+        var currencies = new java.util.TreeSet<String>(month.keySet());
+        currencies.addAll(owed.keySet());
+        List<OrderDtos.MoneyStat> money = currencies.stream()
+                .map(c -> new OrderDtos.MoneyStat(c, month.getOrDefault(c, java.math.BigDecimal.ZERO),
+                        owed.getOrDefault(c, java.math.BigDecimal.ZERO).max(java.math.BigDecimal.ZERO)))
+                .toList();
+        long dueSoon = orders.countDueBy(today.plusDays(3), working);
+        return new OrderStats(by, open, total, money, dueSoon);
     }
 
     OrderDetail assign(UUID id, UUID expertId, String actor) {
@@ -264,6 +283,9 @@ class OrderService {
         if (o.getStatus() != OrderStatus.IN_PROGRESS) {
             throw AppException.rule("INVALID_TRANSITION", "Only work in progress can be submitted for review");
         }
+        if (files.list(o.getId()).stream().noneMatch(f -> f.kind() == FileKind.INTERNAL)) {
+            throw AppException.rule("NO_WORK_FILES", "Upload your work before sending it for review");
+        }
         move(o, OrderStatus.IN_REVIEW, note, actor, false);
         return expertTask(id, expertId);
     }
@@ -316,7 +338,17 @@ class OrderService {
 
     // ---------------- helpers ----------------
 
+    private static Map<String, java.math.BigDecimal> sums(List<CurrencySum> rows) {
+        Map<String, java.math.BigDecimal> map = new java.util.HashMap<>();
+        rows.forEach(r -> map.merge(r.getCurrency(), r.getTotal(), java.math.BigDecimal::add));
+        return map;
+    }
+
     private void move(ServiceOrder o, OrderStatus to, String note, String actor, boolean visible) {
+        if (to == OrderStatus.DELIVERED
+                && files.list(o.getId()).stream().noneMatch(f -> f.kind() == FileKind.DELIVERABLE)) {
+            throw AppException.rule("NO_DELIVERABLES", "Send at least one file to the client before delivering");
+        }
         OrderStatus from = o.moveTo(to);
         log(o, Type.STATUS_CHANGED, from, to, note, actor, visible);
         OrderNotice.Type notice = switch (to) {
