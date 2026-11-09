@@ -19,6 +19,18 @@ spring:
     multipart:
       max-file-size: 50MB
       max-request-size: 60MB
+  # SMTP (e.g. Brevo free: smtp-relay.brevo.com:587). Leave RO_MAIL_HOST empty to only log emails.
+  mail:
+    host: ${RO_MAIL_HOST:}
+    port: ${RO_MAIL_PORT:587}
+    username: ${RO_MAIL_USERNAME:}
+    password: ${RO_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
 
 ro:
   security:
@@ -30,6 +42,10 @@ ro:
     dir: ${RO_FILES_DIR:data/files}
   orders:
     web-base-url: ${RO_WEB_URL:http://localhost:4200}
+  notifications:
+    mail-host: ${RO_MAIL_HOST:}
+    from: ${RO_MAIL_FROM:}
+    admin-email: ${RO_NOTIFY_EMAIL:${RO_ADMIN_EMAIL:}}
   bootstrap:
     admin-email: ${RO_ADMIN_EMAIL:admin@research-office.local}
     admin-password: ${RO_ADMIN_PASSWORD:ChangeMe#2026}
@@ -40,6 +56,10 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    # Email is optional and best-effort; an unreachable SMTP server must not mark the app DOWN.
+    mail:
+      enabled: false
 
 springdoc:
   api-docs:

@@ -10,6 +10,7 @@ import com.researchoffice.orders.internal.OrderDtos.OrderSummary;
 import com.researchoffice.orders.internal.OrderDtos.QuoteRequest;
 import com.researchoffice.orders.internal.OrderDtos.StatusChangeRequest;
 import com.researchoffice.orders.internal.OrderDtos.AssignRequest;
+import com.researchoffice.orders.internal.OrderDtos.PaymentRequest;
 import com.researchoffice.shared.web.CurrentUser;
 import com.researchoffice.shared.web.Downloads;
 import com.researchoffice.shared.web.PageResponse;
@@ -24,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -96,6 +98,17 @@ class AdminOrderController {
     @PostMapping("/{id}/files/{fileId}/publish")
     OrderDetail publish(@PathVariable UUID id, @PathVariable UUID fileId, @AuthenticationPrincipal Jwt jwt) {
         return service.publishFile(id, fileId, actor(jwt));
+    }
+
+    @PostMapping("/{id}/payments")
+    OrderDetail recordPayment(@PathVariable UUID id, @Valid @RequestBody PaymentRequest request,
+                              @AuthenticationPrincipal Jwt jwt) {
+        return service.recordPayment(id, request, actor(jwt));
+    }
+
+    @DeleteMapping("/{id}/payments/{paymentId}")
+    OrderDetail deletePayment(@PathVariable UUID id, @PathVariable UUID paymentId, @AuthenticationPrincipal Jwt jwt) {
+        return service.deletePayment(id, paymentId, actor(jwt));
     }
 
     private static String actor(Jwt jwt) {

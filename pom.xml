@@ -13,7 +13,7 @@
 
     <groupId>com.researchoffice</groupId>
     <artifactId>research-office-backend</artifactId>
-    <version>0.5.0</version>
+    <version>0.6.0</version>
     <name>research-office-backend</name>
     <description>Research office platform backend (modular monolith)</description>
 
@@ -87,8 +87,16 @@
             <artifactId>spring-modulith-starter-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-events-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
         <dependency>

@@ -45,7 +45,7 @@ final class OrderDtos {
 
     record TrackingView(String reference, String serviceName, OrderStatus status, String clientName,
                         @Schema(nullable = true) LocalDate deadline,
-                        @Schema(nullable = true) Quote quote,
+                        @Schema(nullable = true) Quote quote, BigDecimal paidTotal,
                         List<TimelineEntry> timeline, List<FileView> files, Instant createdAt) {
     }
 
@@ -62,7 +62,22 @@ final class OrderDtos {
                        String details, @Schema(nullable = true) LocalDate deadline,
                        @Schema(nullable = true) Quote quote,
                        @Schema(nullable = true) ExpertRef assignedExpert,
+                       BigDecimal paidTotal, List<PaymentView> payments,
                        List<TimelineEntry> timeline, List<FileView> files, Instant createdAt) {
+    }
+
+    record PaymentRequest(@NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+                          @NotNull OrderPayment.Method method,
+                          @NotNull LocalDate paidOn,
+                          @Schema(nullable = true) @Size(max = 500) String note) {
+    }
+
+    record PaymentView(UUID id, BigDecimal amount, String currency, OrderPayment.Method method, LocalDate paidOn,
+                       @Schema(nullable = true) String note, String recordedBy) {
+        static PaymentView of(OrderPayment p) {
+            return new PaymentView(p.getId(), p.getAmount(), p.getCurrency(), p.getMethod(), p.getPaidOn(), p.getNote(),
+                    p.getRecordedBy());
+        }
     }
 
     record ExpertRef(UUID id, String fullName) {
