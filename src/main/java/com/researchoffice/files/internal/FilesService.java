@@ -69,6 +69,15 @@ class FilesService implements FilesApi {
         }
     }
 
+    @Override
+    @Transactional
+    public FileRef publish(UUID ownerId, UUID fileId) {
+        StoredFile f = repository.findByIdAndOwnerId(fileId, ownerId)
+                .orElseThrow(() -> AppException.notFound("File", fileId));
+        f.publish();
+        return f.toRef();
+    }
+
     private static String cleanName(String original) {
         String n = original == null ? "file" : original.replace('\\', '/');
         n = n.substring(n.lastIndexOf('/') + 1).replaceAll("[\\p{Cntrl}]", "").trim();

@@ -9,6 +9,8 @@ import com.researchoffice.orders.internal.OrderDtos.OrderStats;
 import com.researchoffice.orders.internal.OrderDtos.OrderSummary;
 import com.researchoffice.orders.internal.OrderDtos.QuoteRequest;
 import com.researchoffice.orders.internal.OrderDtos.StatusChangeRequest;
+import com.researchoffice.orders.internal.OrderDtos.AssignRequest;
+import com.researchoffice.shared.web.CurrentUser;
 import com.researchoffice.shared.web.Downloads;
 import com.researchoffice.shared.web.PageResponse;
 import jakarta.validation.Valid;
@@ -86,8 +88,17 @@ class AdminOrderController {
         return Downloads.attachment(f.meta().name(), f.meta().contentType(), f.meta().sizeBytes(), f.stream());
     }
 
+    @PostMapping("/{id}/assign")
+    OrderDetail assign(@PathVariable UUID id, @Valid @RequestBody AssignRequest request, @AuthenticationPrincipal Jwt jwt) {
+        return service.assign(id, request.expertId(), actor(jwt));
+    }
+
+    @PostMapping("/{id}/files/{fileId}/publish")
+    OrderDetail publish(@PathVariable UUID id, @PathVariable UUID fileId, @AuthenticationPrincipal Jwt jwt) {
+        return service.publishFile(id, fileId, actor(jwt));
+    }
+
     private static String actor(Jwt jwt) {
-        String name = jwt.getClaimAsString("name");
-        return name == null || name.isBlank() ? jwt.getSubject() : name;
+        return CurrentUser.name(jwt);
     }
 }

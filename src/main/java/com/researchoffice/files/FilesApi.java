@@ -16,6 +16,9 @@ public interface FilesApi {
     /** Opens a file only if it belongs to the given owner. */
     FileContent open(UUID ownerId, UUID fileId);
 
+    /** Makes a reviewed internal file (e.g. an expert's work) visible to the client as a deliverable. */
+    FileRef publish(UUID ownerId, UUID fileId);
+
     enum FileKind {
         /** Sent by the client with the request. */
         CLIENT_UPLOAD,
