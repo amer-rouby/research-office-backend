@@ -81,7 +81,7 @@ class ExpertFlowTests {
         String task = "/api/expert/tasks/" + orderIds.getFirst();
         mvc.perform(get("/api/expert/tasks").header("Authorization", expert)).andExpect(jsonPath("$.length()").value(1));
         String detail = body(get(task).header("Authorization", expert));
-        assertThat(detail).doesNotContain("+97455550000").doesNotContain("عميل الخبير");
+        assertThat(detail).doesNotContain("+97455550000").doesNotContain("عميل الخبير").doesNotContain("QAR");
         assertThat((Boolean) JsonPath.read(detail, "$.canStart")).isTrue();
 
         // another expert cannot see it, and experts cannot use the admin API
@@ -101,6 +101,7 @@ class ExpertFlowTests {
         assertThat(body(get("/api/public/orders/" + token))).doesNotContain("analysis.docx");
         mvc.perform(post(order + "/files/" + fileIds.getFirst() + "/publish").header("Authorization", admin))
                 .andExpect(status().isOk());
-        assertThat(body(get("/api/public/orders/" + token))).contains("analysis.docx");
+        String clientView = body(get("/api/public/orders/" + token));
+        assertThat(clientView).contains("analysis.docx").contains("فريق المكتب").doesNotContain("د. أحمد");
     }
 }

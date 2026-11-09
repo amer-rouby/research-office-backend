@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 class OrderEvent extends BaseEntity {
 
-    enum Type { CREATED, STATUS_CHANGED, QUOTED, NOTE, FILE_ADDED }
+    enum Type { CREATED, STATUS_CHANGED, QUOTED, NOTE, FILE_ADDED, PAYMENT }
 
     @Column(name = "order_id", nullable = false)
     private UUID orderId;

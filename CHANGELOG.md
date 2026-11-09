@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+- Privacy: the client tracking view shows staff actions and files as "فريق المكتب" instead of individual staff/expert names.
+- Experts no longer see quotes or payments in a task history (new `PAYMENT` timeline type).
+
 ## 0.7.0
 - Public office contact endpoint `GET /api/public/office` (name, WhatsApp, email from `RO_OFFICE_NAME`, `RO_OFFICE_WHATSAPP`, `RO_OFFICE_EMAIL`) for the website.
 
